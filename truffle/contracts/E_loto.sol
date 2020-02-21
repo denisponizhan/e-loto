@@ -29,7 +29,7 @@ contract E_loto {
     event DetermineWinningNumber(
         uint8 indexed _winningNumber,
         uint256 indexed _blockNumber,
-        bates32 indexed nextGameId
+        bytes32 indexed _nextGameId
     );
 
     modifier onlyValidBet(uint8 _bet) {
