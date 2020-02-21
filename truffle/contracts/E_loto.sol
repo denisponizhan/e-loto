@@ -1,19 +1,20 @@
 pragma solidity >=0.4.21 <0.7.0;
 
-contract E_loto {
-    constructor() public {}
+import "@openzeppelin/contracts/math/SafeMath.sol";
 
-    uint256 constant maxPlayers = 10;
-    uint256 constant fee = 15000000000000000;
+contract E_loto {
+    using SafeMath for uint256;
+
+    uint256 constant gameInterval = 10000;
+
+    uint256 blockNumber;
+    bytes32 gameId;
 
     struct Game {
         mapping(address => bool) isAlreadyBet;
         Staker[] stakers;
         address[] winners;
-        uint256 counter;
-        bytes winningNumber;
         uint256 stakesTotal;
-        bool isEnd;
     }
 
     struct Staker {
@@ -22,37 +23,54 @@ contract E_loto {
     }
 
     mapping(address => uint256) public balances;
+    mapping(bytes32 => Game) public games;
 
-    Game public game;
+    event PlaceStake(address indexed _staker, uint8 indexed _bet);
+    event DetermineWinningNumber(
+        uint8 indexed _winningNumber,
+        uint256 indexed _blockNumber,
+        bates32 indexed nextGameId
+    );
 
     modifier onlyValidBet(uint8 _bet) {
         require(_bet < 10, "Bet is'n valid");
         _;
     }
 
+    constructor() public {
+        blockNumber = block.number;
+    }
+
     function placeStake(uint8 _bet) public payable onlyValidBet(_bet) {
-        require(!game.isEnd, "There is no place for one more bet");
+        require(
+            block.number < blockNumber.add(gameInterval),
+            "There is no place for one more bet"
+        );
         require(
             msg.value == 15000000000000000,
             "Stake must be equal 0.015 ether"
         );
+
+        Game storage game = games[gameId];
+
         require(
             !game.isAlreadyBet[msg.sender],
             "You have already placed your bet"
         );
-        game.isAlreadyBet[msg.sender] = true;
-        game.counter = game.counter + 1;
-        game.stakesTotal = game.stakesTotal + msg.value;
-        game.stakers.push(Staker(msg.sender, _bet));
 
-        if (game.counter == maxPlayers) {
-            game.isEnd = true;
-            // emit event
-        }
+        game.isAlreadyBet[msg.sender] = true;
+        game.stakesTotal = game.stakesTotal.add(msg.value);
+        game.stakers.push(Staker(msg.sender, _bet));
+        emit PlaceStake(msg.sender, _bet);
     }
 
-    function determineWinners() public returns (bool) {
-        require(game.isEnd, "Game is not end");
+    function determineWinners() public {
+        require(
+            block.number >= blockNumber.add(gameInterval),
+            "Game is not end"
+        );
+
+        Game storage game = games[gameId];
         uint256 winningNumber = generateWinningMumber();
 
         for (uint256 i = 0; i < game.stakers.length; i++) {
@@ -61,17 +79,20 @@ contract E_loto {
             }
         }
 
-        if (game.winners.length == 0) {
-            return true;
-        } else {
-            uint256 rewardAmount = determineRewardAmount(game.winners.length);
+        if (game.winners.length > 0) {
+            uint256 rewardAmount = determineRewardAmount(
+                game.stakesTotal,
+                game.winners.length
+            );
 
             for (uint256 j = 0; j < game.winners.length; j++) {
                 balances[game.winners[j]] = rewardAmount;
             }
-
-            return true;
         }
+
+        blockNumber = block.number;
+        gameId = keccak256(abi.encodePacked(blockNumber));
+        emit DetermineWinningNumber(winningNumber, blockNumber, gameId);
     }
 
     function withdraw() public {
@@ -80,13 +101,13 @@ contract E_loto {
         msg.sender.transfer(amount);
     }
 
-    function determineRewardAmount(uint256 _winnersAmount)
+    function determineRewardAmount(uint256 _stakesTotal, uint256 _winnersAmount)
         private
-        view
+        pure
         returns (uint256)
     {
         require(_winnersAmount != 0, "Winners amount can not be equal to zero");
-        return ((game.stakesTotal - fee) / _winnersAmount);
+        return _stakesTotal.div(_winnersAmount);
     }
 
     // TODO: find more secure way to generate random number
@@ -105,9 +126,4 @@ contract E_loto {
                     9
             );
     }
-
-    function getWinners() public view returns (address[] memory) {
-        return game.winners;
-    }
-
 }
