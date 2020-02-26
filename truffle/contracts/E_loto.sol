@@ -1,14 +1,16 @@
 pragma solidity >=0.4.21 <0.7.0;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/ownership/Ownable.sol";
 
-contract E_loto {
+contract E_loto is Ownable {
     using SafeMath for uint256;
 
-    uint256 constant gameInterval = 10000;
+    uint256 public constant gameInterval = 10;
 
-    uint256 blockNumber;
-    bytes32 gameId;
+    uint256 public contractBounty;
+    uint256 public scheduledBlock;
+    bytes32 public gameId;
 
     struct Game {
         mapping(address => bool) isAlreadyBet;
@@ -28,7 +30,7 @@ contract E_loto {
     event PlaceStake(address indexed _staker, uint8 indexed _bet);
     event DetermineWinningNumber(
         uint8 indexed _winningNumber,
-        uint256 indexed _blockNumber,
+        uint256 indexed _scheduledBlock,
         bytes32 indexed _nextGameId
     );
 
@@ -38,12 +40,12 @@ contract E_loto {
     }
 
     constructor() public {
-        blockNumber = block.number;
+        scheduledBlock = block.number.add(gameInterval);
     }
 
     function placeStake(uint8 _bet) public payable onlyValidBet(_bet) {
         require(
-            block.number < blockNumber.add(gameInterval),
+            block.number < scheduledBlock,
             "There is no place for one more bet"
         );
         require(
@@ -65,13 +67,10 @@ contract E_loto {
     }
 
     function determineWinners() public {
-        require(
-            block.number >= blockNumber.add(gameInterval),
-            "Game is not end"
-        );
+        require(block.number >= scheduledBlock, "Game is not end");
 
         Game storage game = games[gameId];
-        uint256 winningNumber = generateWinningMumber();
+        uint8 winningNumber = generateWinningMumber();
 
         for (uint256 i = 0; i < game.stakers.length; i++) {
             if (game.stakers[i].bet == winningNumber) {
@@ -88,17 +87,13 @@ contract E_loto {
             for (uint256 j = 0; j < game.winners.length; j++) {
                 balances[game.winners[j]] = rewardAmount;
             }
+        } else {
+            contractBounty = contractBounty.add(game.stakesTotal);
         }
 
-        blockNumber = block.number;
-        gameId = keccak256(abi.encodePacked(blockNumber));
-        emit DetermineWinningNumber(winningNumber, blockNumber, gameId);
-    }
-
-    function withdraw() public {
-        uint256 amount = balances[msg.sender];
-        balances[msg.sender] = 0;
-        msg.sender.transfer(amount);
+        scheduledBlock = block.number.add(gameInterval);
+        gameId = keccak256(abi.encodePacked(scheduledBlock));
+        emit DetermineWinningNumber(winningNumber, scheduledBlock, gameId);
     }
 
     function determineRewardAmount(uint256 _stakesTotal, uint256 _winnersAmount)
@@ -111,7 +106,7 @@ contract E_loto {
     }
 
     // TODO: find more secure way to generate random number
-    function generateWinningMumber() private view returns (uint256) {
+    function generateWinningMumber() private view returns (uint8) {
         return
             uint8(
                 uint256(
@@ -125,5 +120,17 @@ contract E_loto {
                 ) %
                     9
             );
+    }
+
+    function withdraw() public {
+        uint256 amount = balances[msg.sender];
+        balances[msg.sender] = 0;
+        msg.sender.transfer(amount);
+    }
+
+    function withdrawBounty() public onlyOwner {
+        uint256 amount = contractBounty;
+        contractBounty = 0;
+        address(uint160(owner())).transfer(amount);
     }
 }
