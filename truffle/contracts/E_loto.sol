@@ -6,8 +6,7 @@ import "@openzeppelin/contracts/ownership/Ownable.sol";
 contract E_loto is Ownable {
     using SafeMath for uint256;
 
-    uint256 public constant gameInterval = 10;
-
+    uint256 public gameInterval;
     uint256 public contractBounty;
     uint256 public scheduledBlock;
     bytes32 public gameId;
@@ -39,8 +38,13 @@ contract E_loto is Ownable {
         _;
     }
 
-    constructor() public {
+    constructor(uint256 _gameInterval) public {
+        gameInterval = _gameInterval;
         scheduledBlock = block.number.add(gameInterval);
+    }
+
+    function updateGameInterval(uint256 _gameInterval) public onlyOwner {
+        gameInterval = _gameInterval;
     }
 
     function placeStake(uint8 _bet) public payable onlyValidBet(_bet) {
