@@ -17,6 +17,7 @@ export default class BlockListener extends EventEmitter {
 
   listen() {
     this.web3.eth.subscribe('newBlockHeaders', async (err, res) => {
+      console.log(res);
       if (!err) {
         const currentBlockNumber = parseInt(res.number);
         if (this.isScheduledBlock(currentBlockNumber, this.scheduledBlock)) {

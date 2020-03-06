@@ -2,13 +2,14 @@ pragma solidity >=0.4.21 <0.7.0;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/ownership/Ownable.sol";
+import "./provableAPI.sol";
 
-contract E_loto is Ownable {
+contract E_loto is Ownable, usingProvable {
     using SafeMath for uint256;
 
-    uint256 public gameInterval;
+    uint256 public gameIntervalInSeconds;
+    uint256 public provableCustomGasLimit;
     uint256 public contractBounty;
-    uint256 public scheduledBlock;
     bytes32 public gameId;
 
     struct Game {
@@ -16,6 +17,7 @@ contract E_loto is Ownable {
         Staker[] stakers;
         address[] winners;
         uint256 stakesTotal;
+        bool isClosed;
     }
 
     struct Staker {
@@ -25,33 +27,84 @@ contract E_loto is Ownable {
 
     mapping(address => uint256) public balances;
     mapping(bytes32 => Game) public games;
+    mapping(bytes32 => bool) public pendingQueries;
 
-    event PlaceStake(address indexed _staker, uint8 indexed _bet);
-    event DetermineWinningNumber(
+    event NewStake(address indexed _staker, uint8 indexed _bet);
+    event NewWinner(
         uint8 indexed _winningNumber,
-        uint256 indexed _scheduledBlock,
-        bytes32 indexed _nextGameId
+        address _winner,
+        uint256 _rewardAmount
     );
+    event NoWinners(string _description, uint8 _winningNumber);
+    event NewProvableQuery(string _description);
+    event NoStakes(string _description);
 
     modifier onlyValidBet(uint8 _bet) {
         require(_bet < 10, "Bet is'n valid");
         _;
     }
 
-    constructor(uint256 _gameInterval) public {
-        gameInterval = _gameInterval;
-        scheduledBlock = block.number.add(gameInterval);
+    modifier onlySystem() {
+        require(
+            msg.sender == provable_cbAddress() ||
+                msg.sender == address(this) ||
+                msg.sender == address(uint160(owner())),
+            "You don't have permission to complete this action"
+        );
+        _;
     }
 
-    function updateGameInterval(uint256 _gameInterval) public onlyOwner {
-        gameInterval = _gameInterval;
+    // function() external payable {}
+
+    constructor(uint256 _gameIntervalInSeconds, uint256 _provableCustomGasLimit)
+        public
+        payable
+    {
+        gameIntervalInSeconds = _gameIntervalInSeconds;
+        provableCustomGasLimit = _provableCustomGasLimit;
+
+        queryNextWinningNumber();
+    }
+
+    function __callback(bytes32 _queryId, string memory _resultRandom) public {
+        require(
+            msg.sender == provable_cbAddress(),
+            "Only provable API is able to process this function"
+        );
+        require(pendingQueries[_queryId] == true, "Query has been processed");
+
+        uint8 winningNumber = uint8(safeParseInt(_resultRandom));
+        processGame(winningNumber);
+
+        queryNextWinningNumber();
+        delete pendingQueries[_queryId];
+    }
+
+    function queryNextWinningNumber() public payable onlySystem {
+        if (
+            provable_getPrice("WolframAlpha", provableCustomGasLimit) >
+            address(this).balance
+        ) {
+            emit NewProvableQuery(
+                "Provable query was NOT sent, please add some ETH to cover for the query fee"
+            );
+        } else {
+            gameId = provable_query(
+                gameIntervalInSeconds,
+                "WolframAlpha",
+                "random number between 0 and 9",
+                provableCustomGasLimit
+            );
+
+            emit NewProvableQuery(
+                "Provable query was sent, random number was requested, standing by for the answer..."
+            );
+
+            pendingQueries[gameId] = true;
+        }
     }
 
     function placeStake(uint8 _bet) public payable onlyValidBet(_bet) {
-        require(
-            block.number < scheduledBlock,
-            "There is no place for one more bet"
-        );
         require(
             msg.value == 15000000000000000,
             "Stake must be equal 0.015 ether"
@@ -59,6 +112,7 @@ contract E_loto is Ownable {
 
         Game storage game = games[gameId];
 
+        require(!game.isClosed, "Game is closed");
         require(
             !game.isAlreadyBet[msg.sender],
             "You have already placed your bet"
@@ -67,37 +121,55 @@ contract E_loto is Ownable {
         game.isAlreadyBet[msg.sender] = true;
         game.stakesTotal = game.stakesTotal.add(msg.value);
         game.stakers.push(Staker(msg.sender, _bet));
-        emit PlaceStake(msg.sender, _bet);
+        emit NewStake(msg.sender, _bet);
     }
 
-    function determineWinners() public {
-        require(block.number >= scheduledBlock, "Game is not end");
-
+    function processGame(uint8 _winningNumber) private {
         Game storage game = games[gameId];
-        uint8 winningNumber = generateWinningMumber();
+        game.isClosed = true;
 
-        for (uint256 i = 0; i < game.stakers.length; i++) {
-            if (game.stakers[i].bet == winningNumber) {
-                game.winners.push(game.stakers[i].account);
-            }
+        if (game.stakesTotal == 0) {
+            emit NoStakes("No stakes in this game!");
+            return;
         }
 
-        if (game.winners.length > 0) {
+        uint256 winnersAmount = determineAmountOfWinners(
+            game.stakers,
+            _winningNumber
+        );
+
+        uint256 provableFee = provable_getPrice(
+            "WolframAlpha",
+            provableCustomGasLimit
+        );
+
+        uint256 stakesToReward = game.stakesTotal.sub(provableFee);
+
+        if (winnersAmount > 0) {
             uint256 rewardAmount = determineRewardAmount(
-                game.stakesTotal,
-                game.winners.length
+                stakesToReward,
+                winnersAmount
             );
 
-            for (uint256 j = 0; j < game.winners.length; j++) {
-                balances[game.winners[j]] = rewardAmount;
-            }
-        } else {
-            contractBounty = contractBounty.add(game.stakesTotal);
-        }
+            increaseBalanceIfWinner(game.stakers, rewardAmount, _winningNumber);
 
-        scheduledBlock = block.number.add(gameInterval);
-        gameId = keccak256(abi.encodePacked(scheduledBlock));
-        emit DetermineWinningNumber(winningNumber, scheduledBlock, gameId);
+        } else {
+            contractBounty = contractBounty.add(stakesToReward);
+            emit NoWinners("No winners in this game!", _winningNumber);
+        }
+    }
+
+    function determineAmountOfWinners(
+        Staker[] storage _stakers,
+        uint8 _winningNumber
+    ) private view returns (uint256) {
+        uint256 j;
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            if (_stakers[i].bet == _winningNumber) {
+                j++;
+            }
+        }
+        return j;
     }
 
     function determineRewardAmount(uint256 _stakesTotal, uint256 _winnersAmount)
@@ -109,21 +181,35 @@ contract E_loto is Ownable {
         return _stakesTotal.div(_winnersAmount);
     }
 
-    // TODO: find more secure way to generate random number
-    function generateWinningMumber() private view returns (uint8) {
-        return
-            uint8(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            block.timestamp,
-                            block.difficulty,
-                            blockhash(block.number)
-                        )
-                    )
-                ) %
-                    9
-            );
+    function increaseBalanceIfWinner(
+        Staker[] storage _stakers,
+        uint256 _rewardAmount,
+        uint8 _winningNumber
+    ) private {
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            if (_stakers[i].bet == _winningNumber) {
+                balances[_stakers[i].account] = _rewardAmount;
+                emit NewWinner(
+                    _winningNumber,
+                    _stakers[i].account,
+                    _rewardAmount
+                );
+            }
+        }
+    }
+
+    function updateGameInterval(uint256 _gameIntervalInSeconds)
+        public
+        onlyOwner
+    {
+        gameIntervalInSeconds = _gameIntervalInSeconds;
+    }
+
+    function updateProvableCustomGasLimit(uint256 _provableCustomGasLimit)
+        public
+        onlyOwner
+    {
+        provableCustomGasLimit = _provableCustomGasLimit;
     }
 
     function withdraw() public {
