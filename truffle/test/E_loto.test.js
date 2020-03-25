@@ -5,7 +5,7 @@ contract('E_loto', async accounts => {
   let e_loto = {};
 
   it('Valid bet should not revert', async () => {
-    e_loto = await E_loto.at('0x4E1985f08C9E7fB0de181366329a6500826E37A2');
+    e_loto = await E_loto.at('0xA69C0189e0d472b2C6C8Ed49fFBFe3d6C6f4697b');
 
     const accounts = await web3.eth.getAccounts();
 

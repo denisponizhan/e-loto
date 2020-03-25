@@ -10,12 +10,12 @@ contract E_loto is Ownable, usingProvable {
     uint256 public gameIntervalInSeconds;
     uint256 public provableCustomGasLimit;
     uint256 public contractBounty;
+    uint256 public provableBalance;
     bytes32 public gameId;
 
     struct Game {
         mapping(address => bool) isAlreadyBet;
         Staker[] stakers;
-        address[] winners;
         uint256 stakesTotal;
         bool isClosed;
     }
@@ -35,7 +35,7 @@ contract E_loto is Ownable, usingProvable {
         address _winner,
         uint256 _rewardAmount
     );
-    event NoWinners(string _description, uint8 _winningNumber);
+    event NoWinners(string _description, uint8 indexed _winningNumber);
     event NewProvableQuery(string _description);
     event NoStakes(string _description);
 
@@ -54,7 +54,9 @@ contract E_loto is Ownable, usingProvable {
         _;
     }
 
-    // function() external payable {}
+    function() external payable {
+        provableBalance = provableBalance.add(msg.value);
+    }
 
     constructor(uint256 _gameIntervalInSeconds, uint256 _provableCustomGasLimit)
         public
@@ -62,6 +64,7 @@ contract E_loto is Ownable, usingProvable {
     {
         gameIntervalInSeconds = _gameIntervalInSeconds;
         provableCustomGasLimit = _provableCustomGasLimit;
+        provableBalance = msg.value;
 
         queryNextWinningNumber();
     }
@@ -81,14 +84,17 @@ contract E_loto is Ownable, usingProvable {
     }
 
     function queryNextWinningNumber() public payable onlySystem {
-        if (
-            provable_getPrice("WolframAlpha", provableCustomGasLimit) >
-            address(this).balance
-        ) {
+        uint256 provableQueryPrice = provable_getPrice(
+            "WolframAlpha",
+            provableCustomGasLimit
+        );
+        if (provableQueryPrice > provableBalance) {
             emit NewProvableQuery(
                 "Provable query was NOT sent, please add some ETH to cover for the query fee"
             );
         } else {
+            provableBalance = provableBalance.sub(provableQueryPrice);
+
             gameId = provable_query(
                 gameIntervalInSeconds,
                 "WolframAlpha",
@@ -142,6 +148,8 @@ contract E_loto is Ownable, usingProvable {
             "WolframAlpha",
             provableCustomGasLimit
         );
+
+        provableBalance = provableBalance.add(provableFee);
 
         uint256 stakesToReward = game.stakesTotal.sub(provableFee);
 
