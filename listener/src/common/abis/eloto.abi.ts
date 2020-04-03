@@ -21,6 +21,19 @@ export default [
     inputs: [
       {
         indexed: false,
+        internalType: 'bytes32',
+        name: '_gameId',
+        type: 'bytes32'
+      }
+    ],
+    name: 'NewGameId',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
         internalType: 'string',
         name: '_description',
         type: 'string'
@@ -32,6 +45,12 @@ export default [
   {
     anonymous: false,
     inputs: [
+      {
+        indexed: false,
+        internalType: 'bytes32',
+        name: '_gameId',
+        type: 'bytes32'
+      },
       {
         indexed: true,
         internalType: 'address',
@@ -52,10 +71,10 @@ export default [
     anonymous: false,
     inputs: [
       {
-        indexed: true,
-        internalType: 'uint8',
-        name: '_winningNumber',
-        type: 'uint8'
+        indexed: false,
+        internalType: 'bytes32',
+        name: '_gameId',
+        type: 'bytes32'
       },
       {
         indexed: false,
@@ -78,6 +97,31 @@ export default [
     inputs: [
       {
         indexed: false,
+        internalType: 'bytes32',
+        name: '_gameId',
+        type: 'bytes32'
+      },
+      {
+        indexed: false,
+        internalType: 'uint8',
+        name: '_winningNumber',
+        type: 'uint8'
+      }
+    ],
+    name: 'NewWinningNumber',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: 'bytes32',
+        name: '_gameId',
+        type: 'bytes32'
+      },
+      {
+        indexed: false,
         internalType: 'string',
         name: '_description',
         type: 'string'
@@ -89,6 +133,12 @@ export default [
   {
     anonymous: false,
     inputs: [
+      {
+        indexed: false,
+        internalType: 'bytes32',
+        name: '_gameId',
+        type: 'bytes32'
+      },
       {
         indexed: false,
         internalType: 'string',

@@ -23,7 +23,11 @@ const contractFactory = {
 @Module({
   imports: [
     ClientsModule.register([
-      { name: LISTENER_SERVICE, transport: Transport.TCP }
+      {
+        name: LISTENER_SERVICE,
+        transport: Transport.TCP,
+        options: { port: 3000 }
+      }
     ]),
     ConfigModule.forRoot({
       load: [configuration]

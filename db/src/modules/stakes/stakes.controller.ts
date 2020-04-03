@@ -1,0 +1,21 @@
+import { Controller } from '@nestjs/common';
+import { EventPattern } from '@nestjs/microservices';
+import { StakesService } from './stakes.service';
+import { NEW_STAKE_EVENT, NEW_WINNER_EVENT } from '../../db.constants';
+import { NewStakeDto } from './dto/new-stake.dto';
+import { NewWinnerDto } from './dto/new-winner.dto';
+
+@Controller()
+export class StakersController {
+  constructor(private stakesService: StakesService) {}
+
+  @EventPattern(NEW_STAKE_EVENT)
+  async handleGameId(stake: NewStakeDto) {
+    this.stakesService.addNewStake(stake);
+  }
+
+  @EventPattern(NEW_WINNER_EVENT)
+  handleNewWiner(winner: NewWinnerDto) {
+    this.stakesService.updateWinnerReward(winner);
+  }
+}

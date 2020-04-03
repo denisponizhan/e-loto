@@ -4,6 +4,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "./provableAPI.sol";
 
+
 contract E_loto is Ownable, usingProvable {
     using SafeMath for uint256;
 
@@ -29,15 +30,21 @@ contract E_loto is Ownable, usingProvable {
     mapping(bytes32 => Game) public games;
     mapping(bytes32 => bool) public pendingQueries;
 
-    event NewStake(address indexed _staker, uint8 indexed _bet);
-    event NewWinner(
-        uint8 indexed _winningNumber,
-        address _winner,
-        uint256 _rewardAmount
+    event NewStake(
+        bytes32 _gameId,
+        address indexed _staker,
+        uint8 indexed _bet
     );
-    event NoWinners(string _description, uint8 indexed _winningNumber);
+    event NewWinner(bytes32 _gameId, address _winner, uint256 _rewardAmount);
+    event NoWinners(
+        bytes32 _gameId,
+        string _description,
+        uint8 indexed _winningNumber
+    );
+    event NewGameId(bytes32 _gameId);
     event NewProvableQuery(string _description);
-    event NoStakes(string _description);
+    event NoStakes(bytes32 _gameId, string _description);
+    event NewWinningNumber(bytes32 _gameId, uint8 _winningNumber);
 
     modifier onlyValidBet(uint8 _bet) {
         require(_bet < 10, "Bet is'n valid");
@@ -54,8 +61,14 @@ contract E_loto is Ownable, usingProvable {
         _;
     }
 
-    function() external payable {
+    function() external payable onlyOwner {
         provableBalance = provableBalance.add(msg.value);
+        Game storage game = games[gameId];
+        require(
+            game.isClosed,
+            "Last game should be closed before starting a new one"
+        );
+        queryNextWinningNumber();
     }
 
     constructor(uint256 _gameIntervalInSeconds, uint256 _provableCustomGasLimit)
@@ -77,8 +90,9 @@ contract E_loto is Ownable, usingProvable {
         require(pendingQueries[_queryId] == true, "Query has been processed");
 
         uint8 winningNumber = uint8(safeParseInt(_resultRandom));
-        processGame(winningNumber);
+        emit NewWinningNumber(_queryId, winningNumber);
 
+        processGame(_queryId, winningNumber);
         queryNextWinningNumber();
         delete pendingQueries[_queryId];
     }
@@ -102,18 +116,15 @@ contract E_loto is Ownable, usingProvable {
                 provableCustomGasLimit
             );
 
-            emit NewProvableQuery(
-                "Provable query was sent, random number was requested, standing by for the answer..."
-            );
-
+            emit NewGameId(gameId);
             pendingQueries[gameId] = true;
         }
     }
 
     function placeStake(uint8 _bet) public payable onlyValidBet(_bet) {
         require(
-            msg.value == 15000000000000000,
-            "Stake must be equal 0.015 ether"
+            msg.value == 5000000000000000,
+            "Stake must be equal 0.005 ether"
         );
 
         Game storage game = games[gameId];
@@ -127,15 +138,15 @@ contract E_loto is Ownable, usingProvable {
         game.isAlreadyBet[msg.sender] = true;
         game.stakesTotal = game.stakesTotal.add(msg.value);
         game.stakers.push(Staker(msg.sender, _bet));
-        emit NewStake(msg.sender, _bet);
+        emit NewStake(gameId, msg.sender, _bet);
     }
 
-    function processGame(uint8 _winningNumber) private {
-        Game storage game = games[gameId];
+    function processGame(bytes32 _gameId, uint8 _winningNumber) private {
+        Game storage game = games[_gameId];
         game.isClosed = true;
 
         if (game.stakesTotal == 0) {
-            emit NoStakes("No stakes in this game!");
+            emit NoStakes(_gameId, "No stakes in this game!");
             return;
         }
 
@@ -160,10 +171,9 @@ contract E_loto is Ownable, usingProvable {
             );
 
             increaseBalanceIfWinner(game.stakers, rewardAmount, _winningNumber);
-
         } else {
             contractBounty = contractBounty.add(stakesToReward);
-            emit NoWinners("No winners in this game!", _winningNumber);
+            emit NoWinners(_gameId, "No winners in this game!", _winningNumber);
         }
     }
 
@@ -197,11 +207,7 @@ contract E_loto is Ownable, usingProvable {
         for (uint256 i = 0; i < _stakers.length; i++) {
             if (_stakers[i].bet == _winningNumber) {
                 balances[_stakers[i].account] = _rewardAmount;
-                emit NewWinner(
-                    _winningNumber,
-                    _stakers[i].account,
-                    _rewardAmount
-                );
+                emit NewWinner(gameId, _stakers[i].account, _rewardAmount);
             }
         }
     }
