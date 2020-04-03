@@ -1,9 +1,8 @@
 import { Controller } from '@nestjs/common';
 import { EventPattern } from '@nestjs/microservices';
 import { GamesService } from './games.service';
-import { NewGameDto } from './dto/new-game.dto';
-import { NewWinningNumberDto } from './dto/new-winning-number.dto';
-import { NEW_GAME_ID, NEW_WINNING_NUMBER } from '../../db.constants';
+import { NewGameDto, NewWinningNumberDto } from './dto';
+import { NEW_GAME_ID, NEW_WINNING_NUMBER } from '../../common/constants';
 
 @Controller()
 export class GamesController {

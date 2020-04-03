@@ -12,7 +12,7 @@ import {
   DB_SERVICE,
   NEW_STAKE_EVENT,
   NEW_WINNER_EVENT,
-} from '../../db.constants';
+} from '../../common/constants';
 
 @EventSubscriber()
 export class StakeSubscriber implements EntitySubscriberInterface<Stake> {

@@ -7,7 +7,7 @@ import {
   NEW_WINNER_EVENT,
   NEW_GAME_ID,
   NEW_WINNING_NUMBER
-} from './listener.constants';
+} from './common/constants';
 
 @Injectable()
 export class ListenerService {
@@ -34,7 +34,6 @@ export class ListenerService {
       .NewStake(options)
       .on('data', event => {
         const { _gameId, _staker, _bet } = event.returnValues;
-        console.log('new stake: ' + _staker + ' ' + _bet);
         this.client.emit(NEW_STAKE_EVENT, {
           gameId: _gameId,
           userAddress: _staker,
@@ -49,7 +48,6 @@ export class ListenerService {
       .NewWinner(options)
       .on('data', event => {
         const { _gameId, _winner, _rewardAmount } = event.returnValues;
-        console.log('new winner: ' + _winner + ' ' + _rewardAmount);
         this.client.emit(NEW_WINNER_EVENT, {
           gameId: _gameId,
           address: _winner,
@@ -77,7 +75,6 @@ export class ListenerService {
       .NewGameId(options)
       .on('data', event => {
         const { _gameId } = event.returnValues;
-        console.log('new game: ' + _gameId);
         this.client.emit(NEW_GAME_ID, {
           id: _gameId
         });

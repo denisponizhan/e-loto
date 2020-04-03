@@ -1,14 +1,12 @@
 import { NestFactory } from '@nestjs/core';
-import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { MicroserviceOptions } from '@nestjs/microservices';
 import { DBModule } from './db.module';
+import { msListenerOptions } from './config';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     DBModule,
-    {
-      transport: Transport.TCP,
-      options: { retryAttempts: 5, retryDelay: 3000, port: 3000 },
-    },
+    msListenerOptions,
   );
   await app.listenAsync();
   console.log('Db service is running!');

@@ -1,6 +1,6 @@
-import { Entity, Column, OneToMany, PrimaryColumn } from 'typeorm';
+import { Entity, Column, OneToMany } from 'typeorm';
 import { Stake } from '../stakes/stake.entity';
-import { CommonColumns } from '../common/common.columns';
+import { CommonColumns } from '../../common/entities/common.entity';
 
 @Entity()
 export class Game extends CommonColumns {

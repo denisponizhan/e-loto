@@ -5,7 +5,7 @@ import {
   NEW_GAME_ID,
   NEW_WINNER_EVENT,
   NEW_WINNING_NUMBER,
-} from './ws.constants';
+} from './common/constants';
 import {
   NewStakeDto,
   NewWinnerDto,

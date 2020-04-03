@@ -5,6 +5,6 @@ async function bootstrap() {
   const app = await NestFactory.create(ListenerModule);
   const port = app.get('ConfigService').get('port');
   await app.listen(port);
-  console.log(`Listener service is running on port: ${port}`);
+  console.log(`Listener service is running!`);
 }
 bootstrap();

@@ -2,8 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { StakesRepository } from './stakes.repository';
 import { Stake } from './stake.entity';
 import { Game } from '../games/game.entity';
-import { StakeInterface } from './interfaces/stake.interface';
-import { WinnerInterface } from './interfaces/winner.interface';
+import { StakeInterface, WinnerInterface } from './interfaces';
 import { GamesRepository } from '../games/games.repository';
 
 @Injectable()

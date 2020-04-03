@@ -1,6 +1,6 @@
 import { Entity, Column, ManyToOne } from 'typeorm';
 import { Game } from '../games/game.entity';
-import { CommonColumns } from '../common/common.columns';
+import { CommonColumns } from '../../common/entities/common.entity';
 
 @Entity()
 export class Stake extends CommonColumns {

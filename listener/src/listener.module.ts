@@ -1,11 +1,11 @@
 import Web3 from 'web3';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Module } from '@nestjs/common';
-import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ClientsModule } from '@nestjs/microservices';
 import { ListenerService } from './listener.service';
-import { LISTENER_SERVICE, CONTRACT_PROVIDER } from './listener.constants';
+import { CONTRACT_PROVIDER } from './common/constants';
 import abi from './common/abis/eloto.abi';
-import configuration from './config/configuration';
+import configuration, { msListenerOptions } from './config';
 
 const contractFactory = {
   provide: CONTRACT_PROVIDER,
@@ -22,13 +22,7 @@ const contractFactory = {
 
 @Module({
   imports: [
-    ClientsModule.register([
-      {
-        name: LISTENER_SERVICE,
-        transport: Transport.TCP,
-        options: { port: 3000 }
-      }
-    ]),
+    ClientsModule.register(msListenerOptions),
     ConfigModule.forRoot({
       load: [configuration]
     })
