@@ -1,0 +1,30 @@
+{
+  "name": "front-end",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve --port ${WEB_CLIENT_PORT}",
+    "build": "vue-cli-service build"
+  },
+  "dependencies": {
+    "ant-design-vue": "^1.5.1",
+    "blockies": "0.0.2",
+    "core-js": "^3.6.4",
+    "particles.js": "2.0.0",
+    "reqwest": "^2.0.5",
+    "vue": "^2.6.11",
+    "vue-infinite-scroll": "^2.0.2",
+    "vue-router": "^3.1.5",
+    "vue-socket.io": "^3.0.7",
+    "vue-virtual-scroller": "^1.0.4",
+    "vuex": "^3.1.2",
+    "web3": "^1.2.6"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "^4.2.0",
+    "@vue/cli-service": "^4.2.0",
+    "node-sass": "^4.12.0",
+    "sass-loader": "^8.0.2",
+    "vue-template-compiler": "^2.6.11"
+  }
+}

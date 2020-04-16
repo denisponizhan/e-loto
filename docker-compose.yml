@@ -1,13 +1,86 @@
-version: '3'
-services:
-  postgres:
-    image: 'postgres'
-    env_file:
-      - postgres.env
-    volumes:
-      - postgres-data:/var/lib/postgresql/data/
-    ports:
-      - '5432:5432'
+version: '3.7'
 
+services:
+  db-service:
+    container_name: db-service
+    build:
+      context: ./api/db-service
+      target: development
+    volumes:
+      - ./api/db-service:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - ${DB_SERVICE_REST_PORT}:${DB_SERVICE_REST_PORT}
+    command: npm run start:dev
+    env_file:
+      - .env
+    networks:
+      - webnet
+    depends_on:
+      - postgres
+
+  listener-service:
+    container_name: listener-service
+    build:
+      context: ./api/listener-service
+      target: development
+    volumes:
+      - ./api/listener-service:/usr/src/app
+      - /usr/src/app/node_modules
+    command: npm run start:dev
+    env_file:
+      - .env
+    networks:
+      - webnet
+
+  ws-service:
+    container_name: ws-service
+    build:
+      context: ./api/ws-service
+      target: development
+    volumes:
+      - ./api/ws-service:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - ${WS_SERVICE_IO_PORT}:${WS_SERVICE_IO_PORT}
+    command: npm run start:dev
+    env_file:
+      - .env
+    networks:
+      - webnet
+
+  web-client:
+    container_name: web-client
+    build:
+      context: ./web-client
+      target: development
+    volumes:
+      - ./web-client:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - ${WEB_CLIENT_PORT}:${WEB_CLIENT_PORT}
+    command: npm run serve
+    env_file:
+      - .env
+    networks:
+      - webnet
+
+  postgres:
+    container_name: postgres
+    image: postgres:12
+    networks:
+      - webnet
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PG_DATA: /var/lib/postgresql/data
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+networks:
+  webnet:
 volumes:
-  postgres-data:
+  pgdata:

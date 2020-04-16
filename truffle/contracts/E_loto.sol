@@ -226,6 +226,15 @@ contract E_loto is Ownable, usingProvable {
         provableCustomGasLimit = _provableCustomGasLimit;
     }
 
+    function getCurrentGameStakes() public returns (uint256) {
+        Game storage game = games[gameId];
+        return game.stakesTotal;
+    }
+
+    function getRewardBalance() public returns (uint256) {
+        return balances[msg.sender];
+    }
+
     function withdraw() public {
         uint256 amount = balances[msg.sender];
         balances[msg.sender] = 0;
